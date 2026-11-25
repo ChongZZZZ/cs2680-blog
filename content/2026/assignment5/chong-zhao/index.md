@@ -2,15 +2,13 @@
 title: "Finding a sweet spot between capability and speed"
 date: 2026-11-24
 authors: ["Chong Zhao"]
-summary: "Good agent design depended on a lot of things, such as the task, the model’s ability, and the feedback available. Balancing speed and capability involved many tradeoffs. Evaluating changes across several runs helped support more reliable decisions."
+summary: "Good agent design depended on a lot of things, such as the task, the model’s ability, and the feedback. Balancing speed and capability of the agent involved many tradeoffs."
 tags: ["agent-design", "evaluation", "caching", "serving"]
 draft: false
 toc: true
 ---
 
-From assignment 2 to assignment 5, we built an increasingly complex coding agent, starting with a simple agent loop to a harness and a serving system. In assignment 2, we built an agent loop. In assignment 3, we tried orchestrating different models to build a harness, considering cost and time constraints. In assignment 4, we developed the harness further and built a serving system to improve throughput. In assignment 5, we tried to make the coding agent more generalizable by getting it to perform well on two tasks.
-
-Across these assignments and the sharing sessions, I learnt a lot about harness design and serving systems. The following are five lessons I learnt, ranging from broad agent design choices to specific techniques for improving prefix cache hits.
+From assignment 2 to assignment 5, we built an increasingly complex coding agent, starting with a simple agent loop to a harness and a serving system. In assignment 2, we built an agent loop. In assignment 3, we tried orchestrating different models to build a harness, considering cost and time constraints. In assignment 4, we developed the harness further and built a serving system to improve throughput. In assignment 5, we tried to make the coding agent more generalizable by getting it to perform well on two tasks. The following are five lessons I learnt, ranging from broad agent design choices to specific techniques for improving prefix cache hits.
 
 <!--more-->
 
