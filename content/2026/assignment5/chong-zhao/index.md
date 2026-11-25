@@ -2,7 +2,7 @@
 title: "Finding a sweet spot between capability and speed"
 date: 2026-11-24
 authors: ["Chong Zhao"]
-summary: "Good agent design depended on a lot of things, such as the task, the model’s ability, and the feedback available. Balancing speed and capability involved many tradeoffs. Evaluating changes across several runs helped support more reliable decisions"
+summary: "Good agent design depended on a lot of things, such as the task, the model’s ability, and the feedback available. Balancing speed and capability involved many tradeoffs. Evaluating changes across several runs helped support more reliable decisions."
 tags: ["agent-design", "evaluation", "caching", "serving"]
 draft: false
 toc: true
@@ -14,7 +14,7 @@ Across these assignments and the sharing sessions, I learnt a lot about harness 
 
 <!--more-->
 
-## Techniques by assignment (Accumulative)
+## Techniques by assignment (Cumulative)
 
 | Assignment | Layer | Techniques |
 |---|---|---|
@@ -39,7 +39,7 @@ Given this, I eventually keep a general harness but let it use different time bu
 
 Across multiple assignments, transferability from local to leaderboard and the noise in the performance have always been a problem, since the local tests and leaderboard tests are different, and the coding agent itself is random. Transferability only improved when the local and online tasks were the same.
 
-In assignment 3, the variations exists between runs in both local tests and online tests. For example, I tried the same zip. One scored 13 while the other one scored only 9. This is because the runs themselves are random, and the harness is not robust enough. In assignment 4, the problem was still there. The same code scored 16, 13, and 14 online. In assignment 5, TB used the same tasks locally and online, which made the local results more useful. However, it was still noisy. The same zip scored 32 and then 30 on leaderboard, and local repeats could differ by 5 solves. Ruling out the different tasks, this situation shows the variation caused by the design of harness and serving system.Locally, the 26 tasks could only be approximated by a different set of 25 practice tasks. The detail information can be seen in the plot below.
+In assignment 3, the variations exists between runs in both local tests and online tests. For example, I tried the same zip. One scored 13 while the other one scored only 9. This is because the runs themselves are random, and the harness is not robust enough. In assignment 4, the problem was still there. The same code scored 16, 13, and 14 online. In assignment 5, TB used the same tasks locally and online, which made the local results more useful. However, it was still noisy. The same zip scored 32 and then 30 on leaderboard, and local repeats could differ by 5 solves. Ruling out the different tasks, this situation shows how much run-to-run variance the harness and serving stack have. Locally, the 26 tasks could only be approximated by a different set of 25 practice tasks. The detail information can be seen in the plot below.
 
 ![Dot plots of repeated local runs of the same setting in assignment 5, four Terminal-Bench settings and five settings on the 25 practice tasks. Runs of one setting differ by 2 to 5 tasks.](fig_n_local_repeats.svg "Figure 2. Variation in Local Runs")
 
@@ -51,7 +51,7 @@ Given the randomness and the transferability issue, what I learned is to test se
 
 I found that prefix cache hit was an important part of serving speed in assignments 4 and 5. Coding agents repeatedly send much of the same context. Losing that cached context would make the whole system slow since it needs to process the context again. Furthermore, the importance of the prefix cache hit is also shown in assignment 3, since assignment 3 has discounted cached tokens in its billing.
 
-Given its importance, in assignment 4 and 5, I tried several techniques on improving the prefix cache hit. The first one is HRRN with a concurrency cap. HRRN itself ranks requests by waiting time, not by shared prefixes, but with the cap, it changed which request ran next and help the system reuse a prefix before it was evicted. It has 57.7% cached, comparing with 8.7% with the cap alone. The second one is HiCache. It keeps evicted prefixes in CPU memory so that later we can reuse it. It has 28.8% cached on its own. Additionally, I also tried to allocating mamba slots on demand so as to enlarge the KV cache from  391k to 468k tokens. HRRN and HiCache together raised the assignment 4 replay cache hit rate from 5% to 85%, served twice as many requests in the same replay and cut a full local run from 1.82 h to 1.30 h. The same architecture and techniques are used and adjusted in assignment 5.
+Given its importance, in assignment 4 and 5, I tried several techniques on improving the prefix cache hit. The first one is HRRN with a concurrency cap. HRRN itself ranks requests by waiting time, not by shared prefixes, but with the cap, it changed which request ran next and help the system reuse a prefix before it was evicted. It has 57.7% cached, comparing with 8.7% with the cap alone. Long-prefix cache hits went from 34 to 324. The second one is HiCache. It keeps evicted prefixes in CPU memory so that later we can reuse it. It has 28.8% cached on its own. Additionally, I also tried to allocating mamba slots on demand so as to enlarge the KV cache from  391k to 468k tokens. HRRN and HiCache together increased the fraction of prompt tokens served from the prefix cache from 5% to 85%, measured from SGLang server logs while replaying requests recorded during one local agent run. This serves twice as many requests in the same replay and cut a full local run from 1.82 h to 1.30 h. The same architecture and techniques are used and adjusted in assignment 5.
 
 However, there is a tradeoff between the number of tasks running concurrently and cache reuse. Opening too many tasks can push earlier prefixes out of the cache. Meanwhile, opening fewer tasks can make each task faster, but leave less work running in parallel and increase the overall time. Thus, simply adding concurrency limit cannot speed up the whole process, if there are a lot of tasks. In assignment 5, I tried opening more tasks first to solve the easy tasks first, then reducing concurrency to spend more time on the remaining tasks. However, in assignment 5, without evaluation, it was also harder to know which solutions were correct and which tasks needed another attempt.
 
@@ -65,7 +65,7 @@ By trying different retry methods in assignments 4 and 5, I learned that retries
 
 In assignment 4, I tried retries with a fresh environment and a learning book recording what had been tried and what had failed. The best results came from this version, which implies that it is useful. I also tried adding more fresh restarts and giving another chance on top of the current code. These did not have significant improvement on the performance.
 
-However, when I moved this approach to assignment 5, it did not improve the results. An important difference is that assignment 4 provided evaluation feedback, so the agent knew when its solution failed. In assignment 5, we did not have that signal to guide retries. Observing that most unresolved tasks failed new tests, it was hard for the agent to tell whether it should submit or try again. I tried to provide the signal by making the success criteria clearer at the beginning. However, the writing tests produce a lot of false alarms.
+However, when I moved this approach to assignment 5, it did not improve the results. An important difference is that assignment 4 provided evaluation feedback, so the agent knew when its solution failed. In assignment 5, we did not have that signal to guide retries. Observing that most unresolved tasks failed the hidden tests the grader runs, it was hard for the agent to tell whether it should submit or try again. I tried to provide the signal by making the success criteria clearer at the beginning. However, tests the agent wrote for itself from the task description often failed on correct solutions. It has a 70% false-alarm rate.
 
 Given this, I learnt that the design of adding retries is based on whether the feedback is available and reliable. 
 
@@ -85,6 +85,6 @@ The second thing I would do differently is how I iterate on versions. I would te
 
 ## AI use
 
-Across assignments, we mainly use claude code for coding and reviewing the code. Sometimes, we will also involve codex for critic the harness and provide insights.
+Across assignments, I mainly use claude code for coding and reviewing the code. Sometimes, I will also involve codex for critic the harness and provide insights.
 
-For blog, we use claude code to generate the figures, collect data, suggested factual corrections with numbers from my records and code up the blog. It did not write the text. The context is provided to it to construct the md file used for this blog.
+For blog, I use claude code to generate the figures from my logs, collect data, suggested factual corrections with numbers from my records and code up the blog. It did not write the text. The context is provided to it to construct the md file used for this blog.
